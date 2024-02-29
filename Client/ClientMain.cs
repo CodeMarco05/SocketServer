@@ -22,17 +22,28 @@ namespace Client{
                     Utils.PrintStatusMessage("Connected to the server");
 
                     // Your communication logic with the server goes here
-
+                    DateTimeOffset time = DateTimeOffset.Now;
+                    long startTime = time.ToUnixTimeMilliseconds();
+                    
                     // For example, sending a message to the server
-                    string message = "Hello, server!";
+                    string message = "Hello Server.";
                     byte[] messageBytes = Encoding.ASCII.GetBytes(message);
                     socket.Send(messageBytes);
+                    
+                    time = DateTimeOffset.Now;
+                    long endTime = time.ToUnixTimeMilliseconds();
+                    Utils.PrintStatusMessage($"It took: {endTime-startTime} ms");
 
                     // Receiving a response from the server
-                    byte[] buffer = new byte[1024];
+                    byte[] buffer = new byte[1_024];
                     int bytesRead = socket.Receive(buffer);
                     string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+                    
+                    
+                    
                     Console.WriteLine($"Server response: {response}");
+                    
+                    
 
                     // Close the connection
                     socket.Shutdown(SocketShutdown.Both);
