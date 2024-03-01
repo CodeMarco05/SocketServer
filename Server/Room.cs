@@ -1,17 +1,18 @@
-using System.Net.Sockets;
+using Server.Models;
 
-namespace Client;
+namespace Server{
+    public class Room{
+        public int roomID {
+            get;
+            private set;
+        }
 
-public class Room{
-    public int roomID {
-        get;
-        private set;
-    }
-
-    public List<Socket> connectedUsers = new();
-    public Room(int roomId) {
-        roomID = roomId;
-    }
+        public List<UserServer> connectedUsers = new();
+        public Room(int roomId) {
+            roomID = roomId;
+        }
 
   
+    }
 }
+

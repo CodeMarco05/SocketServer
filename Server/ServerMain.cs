@@ -4,8 +4,10 @@ using System.Net.Sockets;
 using System.Reflection.Metadata;
 using System.Security.Authentication;
 using System.Text;
-using Client;
+using Server;
+using Server.Models;
 using Shared;
+
 
 namespace ServerMain{
     class ServerMain{
@@ -42,28 +44,31 @@ namespace ServerMain{
         private static void HandleClient(Socket socket) {
             EndPoint? clientInfo = socket.RemoteEndPoint;
             Utils.PrintStatusMessage($"Accepted connection from {clientInfo}");
-            
-            // Handle communication with the client
-            /*byte[] buffer = new byte[65_536];
-            int bytesRead = socket.Receive(buffer);
-            string clientMessage = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            Console.WriteLine($"Received message from client: {clientMessage}");*/
 
-            String protocol = GetProtocol(socket);
+            //Get The protocol
+            string protocol = GetProtocol(socket);
             
             //Validate protocols
             if (protocol == Protocols.CreateRoom.ToString()) {
+                //Generate random roomID
                 int roomID = genRoomID();
                 lock (_rooms) {
+                    //Get the user information
+                    string userName = GetUserData(socket);
+                    UserServer user = new UserServer(userName, roomID, true, socket);
+                    
                     Room newRoom = new Room(roomID);
-                    newRoom.connectedUsers.Add(socket);
+                    newRoom.connectedUsers.Add(user);
+                    
                     _rooms.Add(newRoom);
                 }
                 Utils.PrintForConnectedUser(clientInfo, $"Client created Room. ID: {roomID}");
+                
+                //Send room ID to user
                 SendRoomID(socket, roomID);
             }else if (protocol == Protocols.ConnectToRoom.ToString()) {
                 //get the room id, which user wants to connect
-                int roomID = getRoomIDFromMessage(socket);
+                int roomID = GetRoomIdFromMessage(socket);
                 
                 //TODO put user in room
                 
@@ -78,13 +83,40 @@ namespace ServerMain{
             socket.Close();
         }
 
+        private static string GetUserData(Socket socket) {
+            //Get length of username
+            /*byte[] buffer = new byte[4_096];
+            int bytesRead = socket.Receive(buffer);
+            string message = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            int lengthOfUserName = int.Parse(message);*/
+
+            //int lengthOfUserName = UtilsSocket.recieveLengthOfNextTransmition(socket);
+            
+            //Send ack
+            /*string ack = "0";
+            byte[] responseBytes = Encoding.ASCII.GetBytes(ack);
+            socket.Send(responseBytes);*/
+            
+
+            //get username
+            /*byte[] buffer = new byte[lengthOfUserName];
+            int bytesRead = socket.Receive(buffer);
+            string userName = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            Console.WriteLine(userName);*/
+
+
+            string userName = UtilsSocket.RecieveOverSocket(socket);
+            
+            return userName;
+        }
+
         private static void SendStatusResponse(Socket socket, int i) {
             string response = $"{i}";
             byte[] responseBytes = Encoding.ASCII.GetBytes(response);
             socket.Send(responseBytes);
         }
 
-        private static int getRoomIDFromMessage(Socket socket) {
+        private static int GetRoomIdFromMessage(Socket socket) {
             byte[] buffer = new byte[4];
             int bytesRead = socket.Receive(buffer);
             string message = Encoding.ASCII.GetString(buffer, 0, bytesRead);
@@ -102,14 +134,17 @@ namespace ServerMain{
             Random random = new Random();
             int randomNumber = random.Next(1_000, 10_000);
 
-            while (true) {
-                foreach (Room r in _rooms) {
-                    if (r.roomID == randomNumber) {
-                        randomNumber = random.Next(1_000, 10_001);
+            lock (_rooms) {
+                while (true) {
+                    foreach (Room r in _rooms) {
+                        if (r.roomID == randomNumber) {
+                            randomNumber = random.Next(1_000, 10_000);
+                        }
                     }
+                    break;
                 }
-                break;
             }
+            
             return randomNumber;
         }
 
