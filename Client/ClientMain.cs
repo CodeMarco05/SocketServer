@@ -122,29 +122,8 @@ namespace Client{
 
         //Sends the server the command for creating a room
         private static int CreateRoomOnServer(string name) {
-            //Send protokoll
-            string protocol = Protocols.CreateRoom.ToString();
-            byte[] data = Encoding.ASCII.GetBytes(protocol);
-            _socket.Send(data);
             
-            /*
-            //Send length of username
-            UtilsSocket.sendLengthOfNextTransmition(name.Length, _socket);
-            
-            //get ack
-            byte[] buffer = new byte[1];
-            int bytesRead = _socket.Receive(buffer);
-            string response = (Encoding.ASCII.GetString(buffer, 0, bytesRead));
-            if (response != "0") {
-                Utils.PrintErrorMessage("Error during sending username");
-                Environment.FailFast("Critical error occured.");
-            }
-            
-            //Send user info
-            String message = name;
-            data = Encoding.ASCII.GetBytes(message);
-            _socket.Send(data);
-            */
+            UtilsSocket.SendOverSocket(Protocols.CreateRoom.ToString(), _socket);
             
             UtilsSocket.SendOverSocket(name, _socket);
 

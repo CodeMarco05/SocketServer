@@ -46,7 +46,7 @@ namespace ServerMain{
             Utils.PrintStatusMessage($"Accepted connection from {clientInfo}");
 
             //Get The protocol
-            string protocol = GetProtocol(socket);
+            string protocol = UtilsSocket.RecieveOverSocket(socket);
             
             //Validate protocols
             if (protocol == Protocols.CreateRoom.ToString()) {
@@ -84,30 +84,7 @@ namespace ServerMain{
         }
 
         private static string GetUserData(Socket socket) {
-            //Get length of username
-            /*byte[] buffer = new byte[4_096];
-            int bytesRead = socket.Receive(buffer);
-            string message = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            int lengthOfUserName = int.Parse(message);*/
-
-            //int lengthOfUserName = UtilsSocket.recieveLengthOfNextTransmition(socket);
-            
-            //Send ack
-            /*string ack = "0";
-            byte[] responseBytes = Encoding.ASCII.GetBytes(ack);
-            socket.Send(responseBytes);*/
-            
-
-            //get username
-            /*byte[] buffer = new byte[lengthOfUserName];
-            int bytesRead = socket.Receive(buffer);
-            string userName = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            Console.WriteLine(userName);*/
-
-
-            string userName = UtilsSocket.RecieveOverSocket(socket);
-            
-            return userName;
+            return UtilsSocket.RecieveOverSocket(socket);
         }
 
         private static void SendStatusResponse(Socket socket, int i) {
@@ -146,13 +123,6 @@ namespace ServerMain{
             }
             
             return randomNumber;
-        }
-
-        private static String GetProtocol(Socket socket) {
-            byte[] buffer = new byte[1_024];
-            int bytesRead = socket.Receive(buffer);
-            string message = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            return message;
         }
     }
 }
