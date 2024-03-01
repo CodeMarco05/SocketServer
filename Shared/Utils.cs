@@ -15,6 +15,7 @@ namespace Shared{
             Console.Write($"Input: {message}");
             Console.ResetColor();
         }
+        
 
         public static void PrintForConnectedUser(EndPoint clientInfo, String message) {
             Console.WriteLine("\n------------- \u001b[34m" + clientInfo + "\u001b[0m -------------");
