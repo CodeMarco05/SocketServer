@@ -3,12 +3,11 @@ using System.Text;
 
 namespace Shared;
 
-public class UtilsSocket{
-    private const int SizeForLengthTransmition = 3;
-    private const int MaxTransmitableBytes = 999;
+public class SocketUtils{
+    private const int SizeForLengthTransmition = 5;
+    private const int MaxTransmitableBytes = 99_999;
 
     public static void SendAck(Socket socket) {
-        //TODO comments
         //Send ack
         string ack = "0";
         byte[] responseBytes = Encoding.ASCII.GetBytes(ack);
@@ -16,7 +15,6 @@ public class UtilsSocket{
     }
 
     public static void RecieveAck(Socket socket) {
-        //TODO cooments
         //recieve Ack
         byte[] buffer = new byte[1];
         int bytesRead = socket.Receive(buffer);
@@ -36,7 +34,6 @@ public class UtilsSocket{
 
         byte[] responseBytes = Encoding.ASCII.GetBytes(size);
         socket.Send(responseBytes);
-        
         RecieveAck(socket);
     }
 
