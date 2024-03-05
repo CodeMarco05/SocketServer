@@ -2,20 +2,20 @@ using System.Net.Sockets;
 
 namespace Server.Models{
     public class UserServer{
-        public string name { get; private set; }
+        public string Name { get; private set; }
 
-        public int groupID { get; set; }
+        public int RoomId { get; set; }
 
-        public bool admin { get; set; }
+        public bool Admin { get; set; }
 
-        public Socket socket { get; set; }
+        public Socket Socket { get; set; }
 
 
-        public UserServer(string name, int groupId, bool admin, Socket socket) {
-            this.name = name;
-            groupID = groupId;
-            this.admin = admin;
-            this.socket = socket;
+        public UserServer(string name, int roomID, bool admin, Socket socket) {
+            this.Name = name;
+            RoomId = roomID;
+            this.Admin = admin;
+            this.Socket = socket;
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Text;
+using Newtonsoft.Json;
 using Shared;
 
 namespace Client{
@@ -17,7 +18,7 @@ namespace Client{
         public static void Main(string[] args) {
             //Thread messageThread = new Thread(new ThreadStart(PrintMessage));
             //messageThread.Start();
-            
+
 
             //Start Socket init
             ConnectSocket();
@@ -29,63 +30,55 @@ namespace Client{
 
             //Get Information from user 
             User user = GetInformation();
-            _userName = user.name;
-            
-            //Start listening thread
-            Thread worker = new Thread(new ThreadStart(ManageMessages));
-            worker.Start();
-            
-            //Start console listening thread
-            Thread consoleThread = new Thread(new ThreadStart(ConsoleListen));
-            consoleThread.Start();
+            _userName = user.Name;
 
-            consoleThread.Join();
             
-            
+
             _socket.Shutdown(SocketShutdown.Both);
             _socket.Close();
         }
-        
-        
+
+
         private static void ConsoleListen() {
             while (true) {
                 string message = Console.ReadLine();
                 if (message != null && message != "") {
-                    if(message == "exit") {
+                    if (message == "exit") {
                         //TODO send server message that the user is leaving
                         break;
                     }
+
                     _messageToSend = message;
                 }
             }
         }
-        
+
         private static void ManageMessages() {
             while (true) {
                 //Check if there is a message to send
                 if (_messageToSend != "<none>") {
                     //Send protocol
                     SocketUtils.SendOverSocket(Protocols.MessageSent.ToString(), _socket);
-                    
+
                     //Send the username
                     SocketUtils.SendOverSocket(_userName, _socket);
-                    
+
                     //Send the message
                     SocketUtils.SendOverSocket(_messageToSend, _socket);
                     _messageToSend = "<none>";
-                }else {
+                }
+                else {
                     //Send protocol
                     SocketUtils.SendOverSocket(Protocols.NoMessageSent.ToString(), _socket);
                 }
-                
-                
+
+
                 //Get the message from the server
                 string protocol = SocketUtils.RecieveOverSocket(_socket);
                 if (protocol == Protocols.MessageSent.ToString()) {
                     string message = SocketUtils.RecieveOverSocket(_socket);
                     Console.WriteLine(message);
                 }
-                
             }
         }
 
@@ -106,16 +99,16 @@ namespace Client{
 
 
         private static User GetInformation() {
-            string name;
+            string name = "<empty>";
             do {
-                Utils.UserInput("Plese enter your name: ");
+                Utils.UserInput("Please enter your name: ");
                 name = Console.ReadLine();
             } while (string.IsNullOrWhiteSpace(name));
 
             //---------------------------------------------------
             string createRoom = "y";
             do {
-                Utils.UserInput("Do you want to create a room y/n: ");
+                Utils.UserInput("Do you want to create a room? (y/n): ");
                 createRoom = Console.ReadLine();
             } while (string.IsNullOrWhiteSpace(createRoom) || createRoom != "y" && createRoom != "n");
 
@@ -123,9 +116,15 @@ namespace Client{
             int roomID = 0;
             bool admin = false;
             if (createRoom == "y") {
-                roomID = CreateRoomOnServer(name);
-                Utils.PrintStatusMessage($"Your room id: {roomID}");
                 admin = true;
+                //Create a user
+                User user = new User(name, admin);
+
+                //Send the server the command for creating a room
+                roomID = CreateRoomOnServer(user);
+
+                //Print the room id
+                Utils.PrintStatusMessage($"Your room id: {roomID}");
             }
             else {
                 String roomIDString;
@@ -150,27 +149,28 @@ namespace Client{
 
         //Is connecting to an existing Room
         private static void ConnectToRoom(String roomId, string username) {
-            //Send protocol
-            SocketUtils.SendOverSocket(Protocols.ConnectToRoom.ToString(), _socket);
-            //Send the roomID
-            SocketUtils.SendOverSocket(roomId, _socket);
             
-            //send the username
-            SocketUtils.SendOverSocket(username, _socket);
         }
 
         //Sends the server the command for creating a room
-        private static int CreateRoomOnServer(string name) {
-            SocketUtils.SendOverSocket(Protocols.CreateRoom.ToString(), _socket);
+        private static int CreateRoomOnServer(User user) {
+            int roomID = 0;
 
-            SocketUtils.SendOverSocket(name, _socket);
-
-            //Get four digit code
-            byte[] buffer = new byte[4];
-            int bytesRead = _socket.Receive(buffer);
-            string response = (Encoding.ASCII.GetString(buffer, 0, bytesRead));
-            int roomID = int.Parse(response);
-
+            var message = new Dictionary<string, object>();
+            
+            message.Add("protocol", Protocols.CreateRoom.ToString());
+            message.Add("userDetails", user);
+            
+            string json = JsonConvert.SerializeObject(message);
+            
+            //Send the server the command for creating a room
+            SocketUtils.SendOverSocket(json, _socket);
+            
+            string response = SocketUtils.RecieveOverSocket(_socket);
+            if (response != null) {
+                roomID = int.Parse(response);
+            }
+            
             return roomID;
         }
     }

@@ -1,30 +1,27 @@
-namespace Shared;
+namespace Shared
+{
+    public class User
+    {
+        public string Name { get; set; }
+        public int RoomID { get; set; }
+        public bool Admin { get; set; }
 
-public class User{
-    public string name {
-        get;
-        private set;
+        // Parameterless constructor for JSON.NET deserialization
+        public User()
+        {
+        }
+
+        public User(string name, int roomId, bool admin)
+        {
+            this.Name = name;
+            RoomID = roomId;
+            this.Admin = admin;
+        }
+
+        public User(string name, bool admin)
+        {
+            this.Name = name;
+            this.Admin = admin;
+        }
     }
-
-    public int groupID {
-        get;
-        set;
-    }
-
-    public bool admin {
-        get;
-        set;
-    }
-    
-    
-    
-    public User(string name, int groupId, bool admin) {
-        this.name = name;
-        groupID = groupId;
-        this.admin = admin;
-    }
-
-   
-
-    
 }

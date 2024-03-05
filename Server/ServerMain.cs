@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Reflection.Metadata;
 using System.Security.Authentication;
 using System.Text;
+using Newtonsoft.Json;
 using Server;
 using Server.Models;
 using Shared;
@@ -42,89 +43,29 @@ namespace ServerMain{
 
         private static void HandleClient(Socket socket) {
             EndPoint? clientInfo = socket.RemoteEndPoint;
-            Utils.PrintStatusMessage($"Accepted connection from {clientInfo}");
+            Utils.PrintForConnectedUser(clientInfo, "Connected to the server");
 
-            //Get The protocol
-            string protocol = SocketUtils.RecieveOverSocket(socket);
-            int roomID = -1;
-            //Validate protocols
-            if (protocol == Protocols.CreateRoom.ToString()) {
-                //Generate random roomID
-                roomID = genRoomID();
-                lock (_rooms) {
-                    //Get the user information
-                    string userName = SocketUtils.RecieveOverSocket(socket);
-                    UserServer user = new UserServer(userName, roomID, true, socket);
+            string message = null!;
 
-                    Room newRoom = new Room(roomID);
-                    newRoom.connectedUsers.Add(user);
 
-                    _rooms.Add(newRoom);
-                }
-
-                Utils.PrintForConnectedUser(clientInfo, $"Client created Room. ID: {roomID}");
-
-                //Send room ID to user
-                SendRoomID(socket, roomID);
-            }
-            else if (protocol == Protocols.ConnectToRoom.ToString()) {
-                //get the room id, which user wants to connect
-                String roomIDString = SocketUtils.RecieveOverSocket(socket);
-                roomID = int.Parse(roomIDString);
-
-                Room room = null;
-                lock (_rooms) {
-                    foreach (Room r in _rooms) {
-                        if (r.roomID == roomID) {
-                            room = r;
-                            //Get the user information
-                            string userName = SocketUtils.RecieveOverSocket(socket);
-                            UserServer user = new UserServer(userName, roomID, false, socket);
-                            r.connectedUsers.Add(user);
-                            break;
-                        }
-                    }
-                }
-
-                Utils.PrintForConnectedUser(clientInfo,
-                    $"Client connected to Room. ID: {roomID}. There are {room.connectedUsers.Count} members in the room");
+            //create or join room
+            bool success = HandleUserDecision(socket, clientInfo);
+            if (!success) {
+                DisconnectClient(clientInfo, socket);
+                return;
             }
 
-            //Save room in a variable 
-            //search through the rooms and get the room with the roomID
-            Room connectedRoom = null;
-            lock (_rooms) {
-                foreach (Room r in _rooms) {
-                    if (r.roomID == roomID) {
-                        connectedRoom = r;
-                    }
-                }
+            if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
+                DisconnectClient(clientInfo, socket);
+                return;
             }
 
             while (true) {
-                //check if message was sent
-                protocol = SocketUtils.RecieveOverSocket(socket);
-                
-                if (protocol == Protocols.MessageSent.ToString()) {
-                    //get the username
-                    string username = SocketUtils.RecieveOverSocket(socket);
+                message = SocketUtils.RecieveOverSocket(socket);
 
-                    //get the message
-                    string message = SocketUtils.RecieveOverSocket(socket);
-
-                    Utils.PrintForConnectedUser(clientInfo,
-                        $"Message sent from {username}: {message} in room {roomID}");
-
-                    //send the message to all the users in the room
-                    foreach (UserServer user in connectedRoom.connectedUsers) {
-                        //send protocol
-                        SocketUtils.SendOverSocket(Protocols.MessageSent.ToString(), user.socket);
-                        SocketUtils.SendOverSocket($"{username}: {message}", user.socket);
-                    }
-                }
-                else {
-                    //send protocol for no Message sent
-                    SocketUtils.SendOverSocket(Protocols.NoMessageSent.ToString(), socket);
+                //check if client still connected
+                if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
+                    break;
                 }
             }
 
@@ -135,13 +76,59 @@ namespace ServerMain{
 
             Utils.PrintStatusMessage($"Socket closed: {clientInfo}");
         }
-        
+
+        private static bool HandleUserDecision(Socket socket, EndPoint? clientInfo) {
+            string? message = SocketUtils.RecieveOverSocket(socket);
+
+            if (message != null) {
+                Dictionary<string, object>? messageObject =
+                    JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
+                User? userDetails = JsonConvert.DeserializeObject<User>(messageObject["userDetails"].ToString());
+                
+                if (messageObject?["protocol"].ToString() == Protocols.CreateRoom.ToString()) {
+                    //Generate roomID
+                    int roomID = genRoomID();
+
+                    try {
+                        SocketUtils.SendOverSocket($"{roomID}", socket);
+                    }
+                    catch (Exception e) {
+                        Utils.PrintErrorMessage($"Method(HandleUserDecision) Error during sending roomID as Response\nError: {e.Message}");
+                        return false;
+                    }
 
 
-        private static void SendRoomID(Socket socket, int roomID) {
-            string response = $"{roomID}";
-            byte[] responseBytes = Encoding.ASCII.GetBytes(response);
-            socket.Send(responseBytes);
+                    Room r = new Room(roomID);
+                    r.connectedUsers.Add(new UserServer(userDetails.Name, roomID, userDetails.Admin, socket));
+                    lock (_rooms) {
+                        _rooms.Add(new Room(roomID));
+                    }
+
+                    Utils.PrintForConnectedUser(clientInfo, $"{userDetails.Name} created room with ID: {roomID}");
+                    return true;
+                }
+                else {
+                    //Join room
+                    int roomID = userDetails.RoomID;
+                    bool admin = userDetails.Admin;
+                    string name = userDetails.Name;
+                    
+                    
+                    UserServer user = new UserServer(name, roomID, admin, socket);
+                }
+            }
+            else {
+                Utils.PrintErrorMessage("Error during recieving message from client");
+                return false;
+            }
+
+            return false;
+        }
+
+        private static void DisconnectClient(EndPoint? clientInfo, Socket socket) {
+            Utils.PrintErrorMessage($"Client {clientInfo} disconnected based on closed Connection, or no data was sent.");
+            socket.Shutdown(SocketShutdown.Both);
+            socket.Close();
         }
 
         private static int genRoomID() {

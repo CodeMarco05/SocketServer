@@ -20,8 +20,8 @@ public class SocketUtils{
         int bytesRead = socket.Receive(buffer);
         string response = (Encoding.ASCII.GetString(buffer, 0, bytesRead));
         if (response != "0") {
-            Utils.PrintErrorMessage("Error during sending username");
-            Environment.FailFast("Critical error occured.");
+            Utils.PrintErrorMessage("Method(RecieveAck) Error during sending or recieving data. Exiting...");
+            //Environment.FailFast("Critical error occured.");
         }
     }
 
@@ -38,12 +38,25 @@ public class SocketUtils{
     }
 
     private static int RecieveLengthOfNextTransmition(Socket socket) {
-        byte[] buffer = new byte[MaxTransmitableBytes];
+        byte[] buffer = new byte[SizeForLengthTransmition];
         int bytesRead = socket.Receive(buffer);
-        String response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+        string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
         SendAck(socket);
+        
+        // Trim leading zeros
+        response = response.TrimStart('0');
+
+        // Check if the string is empty or whitespace before parsing
+        if (string.IsNullOrWhiteSpace(response)) {
+            //return -1 because no message was sent
+            return -1;
+            //throw new FormatException("Method: RecieveLengthOfNextTransmition, there was no message, or response is empty or whitespace. Exiting...");
+        }
+
         return int.Parse(response);
     }
+
+
 
     public static void SendOverSocket(string message, Socket socket) {
         //send the size of the message
@@ -54,14 +67,19 @@ public class SocketUtils{
         RecieveAck(socket);
     }
 
-    public static string RecieveOverSocket(Socket socket) {
+    public static string? RecieveOverSocket(Socket socket) {
         //first get the size of the message
         int bufferSize = RecieveLengthOfNextTransmition(socket);
+        
+        //if the buffer size is -1, then there was no message to recieve
+        if(bufferSize == -1) {
+            return null!;
+        }
 
         //Send the message
         byte[] buffer = new byte[bufferSize];
         int bytesRead = socket.Receive(buffer);
-        //wait for ack
+        //send ack
         SendAck(socket);
         //return the result
         return Encoding.ASCII.GetString(buffer, 0, bytesRead);
