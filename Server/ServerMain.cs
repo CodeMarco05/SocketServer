@@ -45,17 +45,26 @@ namespace ServerMain{
             EndPoint? clientInfo = socket.RemoteEndPoint;
             Utils.PrintForConnectedUser(clientInfo, "Connected to the server");
 
-            string message = null!;
+            string? message = null;
+            
 
-
-            //create or join room
-            bool success = HandleUserDecision(socket, clientInfo);
-            if (!success) {
-                DisconnectClient(clientInfo, socket);
-                return;
+            while (true) {
+                message = SocketUtils.RecieveOverSocket(socket);
+                
+                if(message != null) {
+                    Utils.PrintForConnectedUser(clientInfo, message);
+                    if(message == "exit") {
+                        break;
+                    }
+                }
+                
+                //check if client still connected
+                if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
+                    break;
+                }
             }
 
-            if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
+            /*if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
                 DisconnectClient(clientInfo, socket);
                 return;
             }
@@ -67,7 +76,7 @@ namespace ServerMain{
                 if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0) {
                     break;
                 }
-            }
+            }*/
 
 
             // Close the connection with the client
@@ -81,21 +90,18 @@ namespace ServerMain{
             string? message = SocketUtils.RecieveOverSocket(socket);
 
             if (message != null) {
+                //Deserialize message
                 Dictionary<string, object>? messageObject =
                     JsonConvert.DeserializeObject<Dictionary<string, object>>(message);
                 User? userDetails = JsonConvert.DeserializeObject<User>(messageObject["userDetails"].ToString());
                 
+                //Create room
                 if (messageObject?["protocol"].ToString() == Protocols.CreateRoom.ToString()) {
                     //Generate roomID
                     int roomID = genRoomID();
 
-                    try {
-                        SocketUtils.SendOverSocket($"{roomID}", socket);
-                    }
-                    catch (Exception e) {
-                        Utils.PrintErrorMessage($"Method(HandleUserDecision) Error during sending roomID as Response\nError: {e.Message}");
-                        return false;
-                    }
+                    
+                    bool success = SocketUtils.SendOverSocket($"{roomID}", socket);
 
 
                     Room r = new Room(roomID);
@@ -115,6 +121,7 @@ namespace ServerMain{
                     
                     
                     UserServer user = new UserServer(name, roomID, admin, socket);
+                    
                 }
             }
             else {

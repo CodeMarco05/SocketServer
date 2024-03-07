@@ -29,10 +29,23 @@ namespace Client{
             }
 
             //Get Information from user 
-            User user = GetInformation();
-            _userName = user.Name;
+            //User user = GetInformation();
+            //_userName = user.Name;
 
+            while (true) {
+                string message = Console.ReadLine();
+                if (message != null && message != "") {
+                    if (message == "exit") {
+                        SocketUtils.SendOverSocket("exit", _socket);
+                        break;
+                    }
+
+                    _messageToSend = message;
+                    SocketUtils.SendOverSocket(_messageToSend, _socket);
+                }
+            }
             
+
 
             _socket.Shutdown(SocketShutdown.Both);
             _socket.Close();
@@ -148,29 +161,27 @@ namespace Client{
         }
 
         //Is connecting to an existing Room
-        private static void ConnectToRoom(String roomId, string username) {
-            
-        }
+        private static void ConnectToRoom(String roomId, string username) { }
 
         //Sends the server the command for creating a room
         private static int CreateRoomOnServer(User user) {
             int roomID = 0;
 
             var message = new Dictionary<string, object>();
-            
+
             message.Add("protocol", Protocols.CreateRoom.ToString());
             message.Add("userDetails", user);
-            
+
             string json = JsonConvert.SerializeObject(message);
-            
+
             //Send the server the command for creating a room
             SocketUtils.SendOverSocket(json, _socket);
-            
+
             string response = SocketUtils.RecieveOverSocket(_socket);
             if (response != null) {
                 roomID = int.Parse(response);
             }
-            
+
             return roomID;
         }
     }
